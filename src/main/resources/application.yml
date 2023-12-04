@@ -1,0 +1,34 @@
+spring:
+#  application:
+#    name: testZookeeperApp
+  data:
+    mongodb:
+      database: abcd
+      port: '27017'
+      host: ${SPRING_DATA_MONGODB_HOST:localhost}
+  cloud:
+    zookeeper:
+      connect: ${ZOOKEEPER_HOST:localhost:2181}
+      session-timeout: 3000
+#      discovery:
+#        enabled: true
+#      config:
+#        enabled: false
+#        root: configuration
+#        defaultContext: apps
+#        profileSeparator: '::'
+server:
+  port: 11000
+  endpoints:
+    restart:
+      enabled: true
+    shutdown:
+      enabled: true
+    health:
+      sensitive: false
+  shutdown: graceful
+logging.level:
+  org.apache.zookeeper.ClientCnxn: ERROR
+management:
+  security:
+    enabled: false
