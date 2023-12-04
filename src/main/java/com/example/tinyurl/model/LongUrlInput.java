@@ -3,6 +3,7 @@ package com.example.tinyurl.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @JsonIgnoreProperties(ignoreUnknown = true)

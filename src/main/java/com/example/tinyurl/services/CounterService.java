@@ -26,7 +26,7 @@ public class CounterService  {
     private final static String RANGE_NODE = "/range";
     private final static int DIFF_LIMIT = 1;
     private final static int RETRY = 5;
-    private final static int RETRY_SLEEP = 2000;
+    private final static int SLEEP_TIME = 2000;
 
 
     // internal constants filled at runtime
@@ -53,7 +53,7 @@ public class CounterService  {
                 initialized.countDown();
                 return;
             } else {
-                Thread.sleep(RETRY_SLEEP);
+                Thread.sleep(SLEEP_TIME);
             }
         }
         SpringApplication.exit(appContext, () -> 500);
@@ -77,7 +77,7 @@ public class CounterService  {
                         if (result.getStatus() == CounterFetchStatus.Completed && result.getNewRange() != null) {
                             return result;
                         } else {
-                            Thread.sleep(RETRY_SLEEP);
+                            Thread.sleep(SLEEP_TIME);
                         }
                     }
                     return new CounterFetchResult(CounterFetchStatus.Failed, null);

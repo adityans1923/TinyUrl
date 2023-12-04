@@ -3,13 +3,13 @@ spring:
 #    name: testZookeeperApp
   data:
     mongodb:
-      database: abcd
-      port: '27017'
+      database: ${SPRING_MONGODB_DBNAME:urls}
+      port: ${SPRING_MONGODB_PORT:27017}
       host: ${SPRING_DATA_MONGODB_HOST:localhost}
+      auto-index-creation: true
   cloud:
     zookeeper:
-      connect: ${ZOOKEEPER_HOST:localhost:2181}
-      session-timeout: 3000
+      connect: ${SPRING_ZOOKEEPER_HOST:localhost:2181}
 #      discovery:
 #        enabled: true
 #      config:
