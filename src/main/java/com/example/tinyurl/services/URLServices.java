@@ -5,6 +5,7 @@ import com.example.tinyurl.entity.URLStore;
 import com.example.tinyurl.model.LongUrlInput;
 import com.example.tinyurl.model.ShortUrlOutput;
 import com.example.tinyurl.repository.URLRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
@@ -19,7 +20,7 @@ public class URLServices {
     private final CounterService counterService;
     private final BaseEncoder encoder;
 
-    private URLServices(final URLRepository urlRepository,
+    URLServices(final URLRepository urlRepository,
                         final CounterService counterService,
                         final BaseEncoder encoder) {
         this.urlRepository = urlRepository;
@@ -41,6 +42,7 @@ public class URLServices {
         }
     }
 
+    @Cacheable(value = "longUrl", key = "#shortUrl")
     public String getOriginalURL(String shortUrl) {
         URLStore longUrl = urlRepository.findByShortUrl(shortUrl);
         if (longUrl == null) {
