@@ -6,10 +6,13 @@ import com.example.tinyurl.model.LongUrlInput;
 import com.example.tinyurl.model.ShortUrlOutput;
 import com.example.tinyurl.repository.URLRepository;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigInteger;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import java.util.concurrent.ExecutionException;
 
@@ -33,7 +36,7 @@ public class URLServices {
             BigInteger counter = counterService.getCurrentAndIncrement();
             String shortUrl = encoder.encode(counter);
             Instant createdDate = Calendar.getInstance().toInstant();
-            int ttl = 5;
+            int ttl = 10;
             URLStore urlentry = new URLStore(longUrlInput.getLongUrl(), shortUrl, createdDate, ttl, counter.toString());
             urlRepository.save(urlentry);
             return new ShortUrlOutput(shortUrl, createdDate, createdDate.plusSeconds(ttl));
@@ -46,7 +49,9 @@ public class URLServices {
     public String getOriginalURL(String shortUrl) {
         URLStore longUrl = urlRepository.findByShortUrl(shortUrl);
         if (longUrl == null) {
-            return "";
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "entity not found");
+        } else if (longUrl.getCreatedDate().plus(longUrl.getTtl(), ChronoUnit.MINUTES).compareTo(Instant.now()) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "TTL is expired");
         }
         System.out.println(longUrl);
         return longUrl.getLongUrl();
