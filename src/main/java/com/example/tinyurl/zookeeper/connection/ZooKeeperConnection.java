@@ -1,6 +1,7 @@
 package com.example.tinyurl.zookeeper.connection;
 
-import com.example.tinyurl.util.SpringContext;
+import com.example.tinyurl.util.EnvContext;
+import lombok.Getter;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 
@@ -10,12 +11,13 @@ import java.util.concurrent.CountDownLatch;
 public class ZooKeeperConnection {
     public static final String ZooKeeperClientString = "spring.cloud.zookeeper.connect";
     // declare zookeeper instance to access ZooKeeper ensemble
+    @Getter
     private ZooKeeper zk;
     final CountDownLatch connectedSignal = new CountDownLatch(1);
 
     // Method to connect zookeeper ensemble.
     public ZooKeeperConnection() throws IOException,InterruptedException {
-        String host = SpringContext.getProperty(ZooKeeperClientString);
+        String host = EnvContext.getProperty(ZooKeeperClientString);
         zk = new ZooKeeper(host,3000, we -> {
             if (we.getState() == Watcher.Event.KeeperState.SyncConnected) {
                 connectedSignal.countDown();
@@ -45,7 +47,4 @@ public class ZooKeeperConnection {
         zk.setData(path, data, zk.exists(path,true).getVersion());
     }
 
-    public ZooKeeper getZk() {
-        return zk;
-    }
 }
