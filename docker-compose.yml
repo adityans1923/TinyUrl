@@ -31,6 +31,9 @@ services:
     expose:
       - 27017
     restart: always
+    volumes:
+      - ./dockerdata/mongodb:/data/db
+      - ./dockerdata/mongodb/configdb:/data/configdb
     networks:
       - internal_network
   #    entrypoint: [ "/usr/bin/mongod"]
