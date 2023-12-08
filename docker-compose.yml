@@ -1,36 +1,75 @@
-version: "3"
+version: "3.7"
+
 services:
-  mongo1:
-    hostname: mongo1
-    container_name: localmongo1
-    image: mongo
-    expose:
-      - 27017
+  tinyurl:
+    image: example/tinyurl
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: tinyurl
+    container_name: tinyurl
     restart: always
-    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
-  mongo2:
-    hostname: mongo2
-    container_name: localmongo2
-    image: mongo
-    expose:
-      - 27017
-    restart: always
-    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
-  mongo3:
-    hostname: mongo3
-    container_name: localmongo3
-    image: mongo
-    expose:
-      - 27017
-    restart: always
-    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
-  mongosetup:
+    ports:
+      - 11000:9000
+    depends_on:
+      - mongodb
+      - redis
+      - zookeeper
+    environment:
+      - SPRING_DATA_MONGODB_HOST=mongodbserver
+      - SPRING_REDIS_HOST=redisserver
+      - SPRING_ZOOKEEPER_HOST=zookeeperserver:2181
+    networks:
+      - internal_network
+  #    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0"]
+  mongodb:
+    hostname: mongodbserver
+    container_name: mongodb
     image: mongo
     depends_on:
-      - mongo1
-      - mongo2
-      - mongo3
+      - zookeeper
+    expose:
+      - 27017
+    restart: always
+    networks:
+      - internal_network
+  #    entrypoint: [ "/usr/bin/mongod"]
+  redis:
+    hostname: redisserver
+    container_name: redisserver
+    image: redis
+    depends_on:
+      - zookeeper
+    expose:
+      - 6379
+    networks:
+      - internal_network
+  zookeeper:
+    image: zookeeper
+    hostname: zookeeperserver
+    container_name: zookeeperserver
+    ports:
+      - 2181
+      - 2888
+      - 3888
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_PEER_PORT: 2888
+      ZOOKEEPER_LEADER_PORT: 3888
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
     volumes:
-      - .:/scripts
-    restart: "no"
-    entrypoint: [ "bash", "/scripts/mongo_setup.sh"]
+      - ./dockerdata/zookeeper:/data
+      - ./dockerdata/zookeeper/logs:/logs
+      - ./dockerdata/zookeeper/datalog:/datalog
+      - ./configs/zookeeper_setup.sh:/start.sh
+      - ./configs/zoo.cfg:/conf/zoo.cfg
+    networks:
+      - internal_network
+    entrypoint: ["bash", "/start.sh"]
+networks:
+  internal_network:
+    name: internal_network
+    driver: bridge
