@@ -1,16 +1,31 @@
 version: "3.7"
 
 services:
+  reverse-proxy:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker=true"
+      - "--entrypoints.myweb.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - internal_network
   tinyurl:
     image: example/tinyurl
     build:
       context: .
       dockerfile: Dockerfile
     hostname: tinyurl
-    container_name: tinyurl
     restart: always
     ports:
-      - 11000:9000
+      - 9000
     depends_on:
       - mongodb
       - redis
@@ -19,6 +34,11 @@ services:
       - SPRING_DATA_MONGODB_HOST=mongodbserver
       - SPRING_REDIS_HOST=redisserver
       - SPRING_ZOOKEEPER_HOST=zookeeperserver:2181
+    # below are only needed to connect with traefik load balancer
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tinyurl.rule=Host(`server.localhost`)"
+      - "traefik.http.routers.tinyurl.entrypoints=myweb"
     networks:
       - internal_network
   #    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0"]
