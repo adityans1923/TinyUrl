@@ -7,6 +7,7 @@ import org.apache.zookeeper.data.Stat;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class ZooKeeperConnection {
     public static final String ZooKeeperClientString = "spring.cloud.zookeeper.connect";
@@ -23,7 +24,7 @@ public class ZooKeeperConnection {
                 connectedSignal.countDown();
             }
         });
-        connectedSignal.await();
+        connectedSignal.await(5, TimeUnit.SECONDS);
     }
 
     // Method to disconnect from zookeeper server

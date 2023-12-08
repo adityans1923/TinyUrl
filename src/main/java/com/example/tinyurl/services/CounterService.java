@@ -67,7 +67,7 @@ public class CounterService  {
     }
 
     public synchronized BigInteger getCurrentAndIncrement() throws InterruptedException, ExecutionException {
-        initialized.await();
+        initialized.await(5, TimeUnit.SECONDS);
         int compare = endCount.subtract(currentCount).compareTo(BigInteger.valueOf(DIFF_LIMIT));
         if (compare <= 0) {
             if (threadFuture == null) {
