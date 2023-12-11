@@ -5,6 +5,7 @@ import com.example.tinyurl.entity.URLStore;
 import com.example.tinyurl.model.LongUrlInput;
 import com.example.tinyurl.model.ShortUrlOutput;
 import com.example.tinyurl.repository.URLRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -24,8 +25,7 @@ import java.util.concurrent.TimeUnit;
 public class URLServices {
 
     private static final String CACHE_NAME = "URLS";
-    private static final Integer URL_TTL = 5;
-
+    private final Integer URL_TTL;
     private final URLRepository urlRepository;
     private final CounterService counterService;
     private final BaseEncoder encoder;
@@ -34,11 +34,13 @@ public class URLServices {
     URLServices(final URLRepository urlRepository,
                         final CounterService counterService,
                         final CacheManager cacheManager,
+                        @Value("${spring.shorturl.ttl}") final Integer ttl,
                         final BaseEncoder encoder) {
         this.urlRepository = urlRepository;
         this.counterService = counterService;
         this.encoder = encoder;
         this.cacheManager = cacheManager;
+        this.URL_TTL = ttl;
     }
 
     public ShortUrlOutput generateShortUrl(LongUrlInput longUrlInput){
@@ -67,7 +69,7 @@ public class URLServices {
         return longUrl.getLongUrl();
     }
 
-    @Scheduled(fixedDelay = 30, timeUnit=TimeUnit.SECONDS)
+    @Scheduled(fixedDelayString = "${server.janitor}", timeUnit=TimeUnit.SECONDS)
     protected void janitor() {
         List<URLStore> expired = urlRepository.findExpired(Instant.now());
         for (URLStore store: expired) {

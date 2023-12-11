@@ -34,6 +34,10 @@ services:
       - SPRING_DATA_MONGODB_HOST=mongodbserver
       - SPRING_REDIS_HOST=redisserver
       - SPRING_ZOOKEEPER_HOST=zookeeperserver:2181
+      - SPRING_SERVER_PORT=9000
+      - SPRING_REDIS_TTL=-1
+      - SPRING_SHORTURL_TTL=120
+      - SPRING_JANITOR_SCHEDULE=30
     # below are only needed to connect with traefik load balancer
     labels:
       - "traefik.enable=true"
