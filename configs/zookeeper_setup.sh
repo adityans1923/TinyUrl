@@ -1,7 +1,7 @@
 #!/bin/bash
 
 bin/zkServer.sh start /conf/zoo.cfg
-sleep 3
+sleep 2
 bin/zkCli.sh create /counterlock quit
 bin/zkServer.sh stop
 sleep 1
