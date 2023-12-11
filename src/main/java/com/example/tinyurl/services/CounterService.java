@@ -2,10 +2,11 @@ package com.example.tinyurl.services;
 
 import com.example.tinyurl.enums.CounterFetchStatus;
 import com.example.tinyurl.model.CounterFetchResult;
-import com.example.tinyurl.zookeeper.DistributedLock;
 import com.example.tinyurl.zookeeper.connection.ZooKeeperConnection;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
@@ -13,10 +14,11 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.math.BigInteger;
+import java.util.Optional;
 import java.util.concurrent.*;
 
+import static com.example.tinyurl.util.LockingUtil.*;
 
 @Component
 public class CounterService  {
@@ -40,12 +42,23 @@ public class CounterService  {
     private ExecutorService executor = Executors.newSingleThreadExecutor();
     private Future<CounterFetchResult> threadFuture = null;
     private CountDownLatch initialized = new CountDownLatch(1);
+    private static final Logger logger = LoggerFactory.getLogger(CounterService.class);
 
     @Autowired
     private ApplicationContext appContext;
 
     @EventListener
     private void handleRegistration(ApplicationStartedEvent event) throws InterruptedException {
+        // creating base node
+        withLock(connection -> {
+            logger.info("lock obtained successfully for {}", BASE_LOCK);
+            Object obj = connection.existZk(BASE_LOCK);
+            if (obj == null)
+                connection.createZNode(BASE_LOCK, null);
+            return Optional.empty();
+        }, TINY_URL_PATH, ROOT_LOCK);
+
+        // fetching counter for the first time
         for (int i=0;i < RETRY ; i++) {
             CounterFetchResult result = requestingFreshCounter(true);
             if (result.getStatus() == CounterFetchStatus.Completed && result.getNewRange() != null) {
@@ -98,46 +111,21 @@ public class CounterService  {
     }
 
     private synchronized CounterFetchResult requestingFreshCounter(boolean isInit) {
-        ZooKeeperConnection connection = null;
-        try {
-            connection = new ZooKeeperConnection();
-            DistributedLock lock = null;
-            try {
-                lock = new DistributedLock(connection, BASE_LOCK, LOCK_NAME);
-                lock.lock();
-
-                BigInteger newCounter = null;
-                if (isInit) {
-                    Stat stat = connection.existZk(RANGE_NODE);
-                    if (stat == null) {
-                        connection.createZNode(RANGE_NODE, RANGE_SIZE.toByteArray());
-                        newCounter = BigInteger.ZERO;
-                    } else {
-                        newCounter = updateNewRange(connection);
-                    }
+        return withLock(connection -> {
+            BigInteger newCounter = null;
+            if (isInit) {
+                Stat stat = connection.existZk(RANGE_NODE);
+                if (stat == null) {
+                    connection.createZNode(RANGE_NODE, RANGE_SIZE.toByteArray());
+                    newCounter = BigInteger.ZERO;
                 } else {
                     newCounter = updateNewRange(connection);
                 }
-                return new CounterFetchResult(CounterFetchStatus.Completed, newCounter);
-            } catch (KeeperException e) {
-                throw new IOException(e);
-            } finally {
-                if (lock != null) {
-                    lock.unlock();
-                }
+            } else {
+                newCounter = updateNewRange(connection);
             }
-        } catch (IOException | InterruptedException e) {
-            System.out.println(e);
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (InterruptedException e) {
-                    System.out.println("exception while closing connection " + e.getMessage());
-                }
-            }
-        }
-        return new CounterFetchResult(CounterFetchStatus.Failed, null);
+            return Optional.of(new CounterFetchResult(CounterFetchStatus.Completed, newCounter));
+        }, BASE_LOCK, LOCK_NAME).get();
     }
     private BigInteger updateNewRange(ZooKeeperConnection connection) throws InterruptedException, KeeperException {
         byte[] data = connection.getData(RANGE_NODE);

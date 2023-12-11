@@ -40,6 +40,7 @@ server:
   shutdown: graceful
 logging.level:
   org.apache.zookeeper.ClientCnxn: ERROR
+  org.springframework.cache: TRACE
 management:
   security:
     enabled: false

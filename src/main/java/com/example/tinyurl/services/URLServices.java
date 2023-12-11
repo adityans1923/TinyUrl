@@ -24,22 +24,26 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class URLServices {
 
-    private static final String CACHE_NAME = "URLS";
+    public static final String CACHE_NAME = "URLS";
     private final Integer URL_TTL;
     private final URLRepository urlRepository;
     private final CounterService counterService;
     private final BaseEncoder encoder;
     private final CacheManager cacheManager;
 
+    private final JanitorService janitorService;
+
     URLServices(final URLRepository urlRepository,
                         final CounterService counterService,
                         final CacheManager cacheManager,
                         @Value("${spring.shorturl.ttl}") final Integer ttl,
+                        final JanitorService janitorService,
                         final BaseEncoder encoder) {
         this.urlRepository = urlRepository;
         this.counterService = counterService;
         this.encoder = encoder;
         this.cacheManager = cacheManager;
+        this.janitorService = janitorService;
         this.URL_TTL = ttl;
     }
 
@@ -69,17 +73,8 @@ public class URLServices {
         return longUrl.getLongUrl();
     }
 
-    @Scheduled(fixedDelayString = "${server.janitor}", timeUnit=TimeUnit.SECONDS)
     protected void janitor() {
-        List<URLStore> expired = urlRepository.findExpired(Instant.now());
-        for (URLStore store: expired) {
-            Objects.requireNonNull(this.cacheManager.getCache(CACHE_NAME)).evictIfPresent(store.getShortUrl());
-        }
-        //delete all entries
-        try {
-            urlRepository.deleteExpiredUrls(Instant.now());
-        } catch (Exception e) {
-            System.out.println(e);
-        }
+        System.out.println("janitor is cleaning");
+
     }
 }
