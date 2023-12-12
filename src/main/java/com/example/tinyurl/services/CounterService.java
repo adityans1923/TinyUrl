@@ -2,6 +2,7 @@ package com.example.tinyurl.services;
 
 import com.example.tinyurl.enums.CounterFetchStatus;
 import com.example.tinyurl.model.CounterFetchResult;
+import com.example.tinyurl.zookeeper.DistributedLock;
 import com.example.tinyurl.zookeeper.connection.ZooKeeperConnection;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -14,8 +15,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.math.BigInteger;
-import java.util.Optional;
 import java.util.concurrent.*;
 
 import static com.example.tinyurl.util.LockingUtil.*;
@@ -55,7 +56,6 @@ public class CounterService  {
             Object obj = connection.existZk(BASE_LOCK);
             if (obj == null)
                 connection.createZNode(BASE_LOCK, null);
-            return Optional.empty();
         }, TINY_URL_PATH, ROOT_LOCK);
 
         // fetching counter for the first time
@@ -111,21 +111,45 @@ public class CounterService  {
     }
 
     private synchronized CounterFetchResult requestingFreshCounter(boolean isInit) {
-        return withLock(connection -> {
-            BigInteger newCounter = null;
-            if (isInit) {
-                Stat stat = connection.existZk(RANGE_NODE);
-                if (stat == null) {
-                    connection.createZNode(RANGE_NODE, RANGE_SIZE.toByteArray());
-                    newCounter = BigInteger.ZERO;
+        ZooKeeperConnection connection = null;
+        try {
+            connection = new ZooKeeperConnection();
+            DistributedLock lock = null;
+            try {
+                lock = new DistributedLock(connection, BASE_LOCK, LOCK_NAME);
+                lock.lock();
+                BigInteger newCounter = null;
+                if (isInit) {
+                    Stat stat = connection.existZk(RANGE_NODE);
+                    if (stat == null) {
+                        connection.createZNode(RANGE_NODE, RANGE_SIZE.toByteArray());
+                        newCounter = BigInteger.ZERO;
+                    } else {
+                        newCounter = updateNewRange(connection);
+                    }
                 } else {
                     newCounter = updateNewRange(connection);
                 }
-            } else {
-                newCounter = updateNewRange(connection);
+                return new CounterFetchResult(CounterFetchStatus.Completed, newCounter);
+            } catch (KeeperException e) {
+                throw new RuntimeException(e);
+            } finally {
+                if (lock != null) {
+                    lock.unlock();
+                }
             }
-            return Optional.of(new CounterFetchResult(CounterFetchStatus.Completed, newCounter));
-        }, BASE_LOCK, LOCK_NAME).get();
+        } catch (IOException | InterruptedException e) {
+            logger.error(e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (InterruptedException e) {
+                    logger.error("exception while closing connection " + e.getMessage());
+                }
+            }
+        }
+        return new CounterFetchResult(CounterFetchStatus.Failed, null);
     }
     private BigInteger updateNewRange(ZooKeeperConnection connection) throws InterruptedException, KeeperException {
         byte[] data = connection.getData(RANGE_NODE);

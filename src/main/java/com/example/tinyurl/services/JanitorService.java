@@ -1,7 +1,6 @@
 package com.example.tinyurl.services;
 
 import com.example.tinyurl.entity.URLStore;
-import com.example.tinyurl.model.CounterFetchResult;
 import com.example.tinyurl.repository.URLRepository;
 import com.example.tinyurl.zookeeper.connection.ZooKeeperConnection;
 import org.apache.zookeeper.KeeperException;
@@ -17,7 +16,6 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.example.tinyurl.services.URLServices.CACHE_NAME;
@@ -33,7 +31,6 @@ public class JanitorService {
     private final CacheManager cacheManager;
     private final Long janitorTime;
     private Boolean init = false;
-    private final static TimeUnit timeUnit = TimeUnit.SECONDS;
 
     public JanitorService(URLRepository urlRepository, CacheManager cacheManager, @Value("${server.janitor}") Long janitorTime) {
         this.urlRepository = urlRepository;
@@ -55,7 +52,6 @@ public class JanitorService {
                 connection.setData(LAST_CLEAN, Long.toString(Instant.now().toEpochMilli()).getBytes());
             }
             init = true;
-            return Optional.empty();
         }, TINY_URL_PATH, ROOT_LOCK);
     }
 
@@ -66,7 +62,7 @@ public class JanitorService {
         }
     }
 
-    private Optional<CounterFetchResult> deleteRecord(ZooKeeperConnection connection) throws InterruptedException, KeeperException{
+    private void deleteRecord(ZooKeeperConnection connection) throws InterruptedException, KeeperException{
         boolean shouldRun = false;
         byte[] bytes = connection.getData(LAST_CLEAN);
         if (Long.parseLong(new String(bytes)) + TimeUnit.SECONDS.toMillis(janitorTime) < Instant.now().toEpochMilli()) {
@@ -86,6 +82,5 @@ public class JanitorService {
                 logger.error(e.toString());
             }
         }
-        return Optional.empty();
     }
 }

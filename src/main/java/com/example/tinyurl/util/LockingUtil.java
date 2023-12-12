@@ -1,6 +1,5 @@
 package com.example.tinyurl.util;
 
-import com.example.tinyurl.enums.CounterFetchStatus;
 import com.example.tinyurl.fuction.LockConsumer;
 import com.example.tinyurl.model.CounterFetchResult;
 import com.example.tinyurl.zookeeper.DistributedLock;
@@ -10,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Optional;
 
 public class LockingUtil {
 
@@ -18,7 +16,7 @@ public class LockingUtil {
     public static final String ROOT_LOCK = "root-lock";
     public static final String TINY_URL_PATH = "/tinyurl";
 
-    public static Optional<CounterFetchResult> withLock(LockConsumer<ZooKeeperConnection, CounterFetchResult> consumer, String basePath, String lockName) {
+    public static void withLock(LockConsumer<ZooKeeperConnection, CounterFetchResult> consumer, String basePath, String lockName) {
         // return statement is only used in case of counter fetch
         ZooKeeperConnection connection = null;
         try {
@@ -27,7 +25,7 @@ public class LockingUtil {
             try {
                 lock = new DistributedLock(connection, basePath, lockName);
                 lock.lock();
-                return consumer.accept(connection);
+                consumer.accept(connection);
             } catch (KeeperException e) {
                 throw new RuntimeException(e);
             } finally {
@@ -46,6 +44,5 @@ public class LockingUtil {
                 }
             }
         }
-        return Optional.of(new CounterFetchResult(CounterFetchStatus.Failed, null));
     }
 }
